@@ -8,7 +8,6 @@ from datetime import datetime
 
 # Menu option 1
 def metadataView(connectionSocket):
-    """SearchPB: Performs search function of application."""
 
     with open('Database.json', 'r') as fjson:
         try:
@@ -27,7 +26,6 @@ def metadataView(connectionSocket):
 
 # Menu option 2
 def fileUpload(connectionSocket):
-    """addPBEntry: Adds a new entry or number to existing entry in phonebook."""
 
     with open('Database.json', 'r+') as fjson:
         try:
@@ -106,8 +104,6 @@ def fileSystemMenu(connectionSocket):
         elif menuEntry == 3:
             # Break loop, exit menu, server will handle connection closing
             break
-
-
 
 
 def server():

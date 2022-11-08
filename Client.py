@@ -1,6 +1,10 @@
 # CMPT 361
 # Project
 
+import os
+import socket
+import sys
+
 def fileUploadHandler(clientSocket):
     # Assuming that the message for the file upload has already been received
     filePath = ''
