@@ -7,12 +7,12 @@
 
 Here is a basic overview of how Git works:
 
-    - Create a "repository" (project) with a git hosting tool (like Bitbucket)
-    - Copy (or clone) the repository to your local machine
+    - Download Github desktop https://desktop.github.com/
+    - Copy (or clone) the repository to your local machine w/ Github desktop
     - Add a file to your local repo and "commit" (save) the changes
-    - "Push" your changes to your main branch
-    - Make a change to your file with a git hosting tool and commit
+    - "Push" your changes to your branch
+    - In Github desktop, choose which files to commit and add a message
     - "Pull" the changes to your local machine
-    - Create a "branch" (version), make a change, commit the change
+    
     - Open a "pull request" (propose changes to the main branch)
     - "Merge" your branch to the main branch
