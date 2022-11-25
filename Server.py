@@ -1,114 +1,136 @@
+# Sera Vallee
+# 3045024
 # CMPT 361
-# Project
+# L7
 
 import socket
 import sys
-import json
-from datetime import datetime
+import os
+import random
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 
-# Menu option 1
-def metadataView(connectionSocket):
+def getKey():
+    f = open("key", 'rb')
+    key = f.read()
+    f.close()
 
-    with open('Database.json', 'r') as fjson:
-        try:
-            fs = json.load(fjson)
-        except Exception:
-            fs = {}
-        fjson.close()
+    return key
 
-    tableStr = "Name".ljust(20) + "Size(Bytes)".ljust(20) + "Upload Date and Time\n"
-    for item in fs:
-        tableStr += item.ljust(20) + str(fs[item]["size"]).ljust(20) + fs[item]["date"] + '\n'
+def encrypt(message):
+    key = getKey()
+    raw = pad(message.encode(), 32)
+    cipher = AES.new(key, AES.MODE_ECB)
+    encryptedMsg = cipher.encrypt(raw)
 
-    connectionSocket.send(tableStr.encode('ascii'))
+    return encryptedMsg
 
-    return fjson.closed
+def decrypt(message):
+    key = getKey()
+    cipher = AES.new(key, AES.MODE_ECB)
+    raw = cipher.decrypt(message)
+    decryptedMsg = unpad(raw, 32).decode('ascii')
+
+    return decryptedMsg
+
+def printEncMsg(encMsg, name=''):
+    if name != '':
+        print("Encrypted message received from " + name + ": " + str(encMsg))
+    else:
+        print("Encrypted message received: " + str(encMsg))
+
+def printDencMsg(decMsg, name=''):
+    if name != '':
+        print("Decrypted message received from " + name + ": " + decMsg)
+    else:
+        print("Decrypted message received: " + decMsg)
+
+def randomQuestion(num):
+    answer = 0
+    string = ''
+    x = random.randint(0,100)
+    y = random.randint(0,100)
+    op = random.randint(1,3)
+    if op == 1:                 # + add
+        answer = x + y
+        string = f'{"Question"}{num}{": "}{x}{" + "}{y}{" ="}'
+    elif op == 2:               # - sub
+        answer = x - y
+        string = f'{"Question"}{num}{": "}{x}{" - "}{y}{" ="}'
+    elif op == 3:               # * mult
+        answer = x * y
+        string = f'{"Question"}{num}{": "}{x}{" * "}{y}{" ="}'
+
+    return answer, string
+
 
 # Menu option 2
-def fileUpload(connectionSocket):
+def exam(connectionSocket, name):
+    score = 0
+    for i in range(1,5):
+        qAns, qStr = randomQuestion(i)
 
-    with open('Database.json', 'r+') as fjson:
-        try:
-            fs = json.load(fjson)
-            fjson.seek(0)
-        except Exception as e:
-            fs = {}
+        qStr_e = encrypt(qStr)
+        connectionSocket.send(qStr_e)
 
-        # Ask for a name and then receive it
-        nameMessage = '2Enter the name: '
-        connectionSocket.send(nameMessage.encode('ascii'))
-        metaEntry = connectionSocket.recv(2048).decode('ascii')
-        currDate = str(datetime.now())
+        # Receive file and save it
+        ansEntry_e = connectionSocket.recv(32)
+        printEncMsg(ansEntry_e, name)
+        ansEntry = decrypt(ansEntry_e)
+        printDencMsg(ansEntry, name)
 
-        # if something went wrong, kill subroutine
-        if metaEntry == '':
-            return
+        if int(ansEntry) == qAns:
+            score = score + 1
 
-        fileMeta = metaEntry.split("\n")  # Split entry into name and size as in [0] and [1] respectively
-        name = fileMeta[0]
-        fileSize = int(fileMeta[1])
-
-        # Receive uploaded
-        with open(name, 'wb') as uploadF:
-            # Send file upload acknowledgement
-            ackMessage = 'OK ' + str(fileSize)
-            connectionSocket.send(ackMessage.encode('ascii'))
-
-            # Receive file and save it
-            filePart = connectionSocket.recv(2048)
-            revceivedBytes = 0
-            while True:
-                uploadF.write(filePart)  # Write uploaded file
-                revceivedBytes += len(filePart)
-                if revceivedBytes >= fileSize:
-                    break;
-                filePart = connectionSocket.recv(2048)
+    return score
 
 
-            uploadF.close()
-
-            # Add file metadata to file system
-            metadata = {"size": fileSize, "date": currDate}
-            fs[name] = metadata
-
-            fjson.write(json.dumps(fs))
-            fjson.truncate()
-
-        fjson.close()
-
-
-    return
-
-
-def fileSystemMenu(connectionSocket):
+def menu(connectionSocket):
     """Menu: deals with the menu of the application."""
+
+    # Ask for a name and then receive it
+    examMsg = "Welcome to examination System"
+    examMsg_e = encrypt(examMsg)
+    connectionSocket.send(examMsg_e)
+
+    nameMsg = '1Enter the name: '
+    nameMsg_e = encrypt(nameMsg)
+    connectionSocket.send(nameMsg_e)
+
+    nameEntry_e = connectionSocket.recv(32)
+    printEncMsg(nameMsg_e)
+    nameEntry = decrypt(nameEntry_e)
+    printDencMsg(nameEntry)
+
     while True:
-        # Print menu selection message
-        menuMessage = "1\n\nPlease select the operation: \n1) View uploaded files information\n" \
-                      "2) Upload a file \n3) Terminate the connection\nChoice:"
-        connectionSocket.send(menuMessage.encode('ascii'))
+        score = exam(connectionSocket, nameEntry)
+
+        # Report score
+        scoreMsg = "You achieved a score of " + str(score) + "/4"
+        scoreMsg_e = encrypt(scoreMsg)
+        connectionSocket.send(scoreMsg_e)
+
+        retryMsg = '2Try again? (y/n)'
+        retryMsg_e = encrypt(retryMsg)
+        connectionSocket.send(retryMsg_e)
 
         # Get menu select from client
-        menuEntry = connectionSocket.recv(2048).decode('ascii')
-        menuEntry = int(menuEntry)
+        menuEntry_e = connectionSocket.recv(32)
+        printEncMsg(menuEntry_e, nameEntry)
+        menuEntry = decrypt(menuEntry_e)
+        printDencMsg(menuEntry, nameEntry)
 
         # Handle menu options
-        if menuEntry == 1:
-            metadataView(connectionSocket)
+        if menuEntry == "y":
             continue
 
-        elif menuEntry == 2:
-            fileUpload(connectionSocket)
-            continue
-
-        elif menuEntry == 3:
+        else:
             # Break loop, exit menu, server will handle connection closing
             break
 
 
 def server():
     """Server: Manages server application."""
-    open("Database.json", 'w').close()
 
     # Server port
     serverPort = 13000
@@ -128,38 +150,30 @@ def server():
         serverSocket.close()
         sys.exit(1)
 
-    #print('The server is ready to accept connections')
+    print('The server is ready to accept connections')
 
+    concurrent = 0
     while True:
-        # The server can only have one connection in its queue waiting for acceptance
-        serverSocket.listen(1)
+        # The server can only have 1 connection in its queue waiting for acceptance
+        serverSocket.listen(5)
+
         try:
+            if concurrent > 5:
+                os.wait()
+                concurrent -= 1
             # Server accepts client connection
             connectionSocket, addr = serverSocket.accept()
-            #print(addr, '   ', connectionSocket)
+            c_pid = os.fork()
+            if c_pid == 0:
+                # Run Menu that the User interacts with
+                menu(connectionSocket)
 
-            introMessage = 'Welcome to our system.\nEnter your username: '
-            connectionSocket.send(introMessage.encode('ascii'))
-
-            # Get menu select from client
-            userEntry = connectionSocket.recv(2048)
-            userEntry = userEntry.decode('ascii')
-
-            # Incorrect Username
-            if userEntry != 'user1':
-                ejectMessage = 'Incorrect username. Connection Terminated.'
-                connectionSocket.send(ejectMessage.encode('ascii'))
+                # Server terminates client connection
                 connectionSocket.close()
-                continue
+                break
             else:
-                loginCode = "200"
-                connectionSocket.send(loginCode.encode('ascii'))
-
-            # Run Menu that the User interacts with
-            fileSystemMenu(connectionSocket)
-
-            # Server terminates client connection
-            connectionSocket.close()
+                concurrent += 1
+                continue
 
         except socket.error as e:
             print('A client socket error occurred: ', e)
@@ -169,10 +183,10 @@ def server():
             serverSocket.close()
             sys.exit(0)
 
-        except Exception as e:
-            trace = e.__traceback__.tb_lineno
-            print('Non-Socket exception occurred: ', e)
-            print("In: ", trace)
+        # except Exception as e:
+        #     trace = e.__traceback__.tb_lineno
+        #     print('Non-Socket exception occurred: ', e)
+        #     print("In: ", trace)
             # serverSocket.close()
             # sys.exit(0)
 
