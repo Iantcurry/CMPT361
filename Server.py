@@ -5,34 +5,46 @@ import random
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 
-def viewEmail(clientName):
+#def makeEmailList():
+    
+#    return
+def viewEmail(listE, clientName, connectionSocket):
     message = "the server request email index"
     # encrypt #
-    connectionSocket.send(message)
+    connectionSocket.send(message.encode('ascii'))
     
     # Recieve index from client
     index = connectionSocket.recv(2048)
+    index = index.decode('ascii')
+    index = int(index)
+    index -= 1 # user will input index 1 to view item at index 0
     # decrypt #
-    
+    '''
+    We have decided to scan client's email folder to create list each time instead of keeping a list in a text file.
+    But wanted to keep this here incase we want to switch to that implmentation
     # must build filePath as it's unique per client
-    filePath = "\\" + clientName + "\\list.txt" 
-    with open(filePath, "r") as file:
-        listE = file.read() # Read list of emails 
-    print(listE)
-    
-    if index < len(listE) - 1: # ensures index in range so it doesn't crash
-        filepath = "" #(clears incase old filepath is really long and ensures we completely overwrite it)
-        filePath = "\\" + clientName + "\\" + listE[index]
+    # filePath = "\\" + clientName + "\\list.txt" 
+    # with open(filePath, "r") as file:
+    #    listE = file.read() # Read list of emails 
+    #print(listE)
+    '''
+
+    if index < len(listE) and index >= 0: # ensures index in range so it doesn't crash
+        # must build filePath as it's unique per client
+        path = "./"
+        filePath = os.path.join(path,clientName, listE[index])
+        # print(str(filePath))
         with open(filePath, "r") as file:
             email = file.read() # Reads email
         # encrypt email
-        connectionSocket.send(email)
+        connectionSocket.send(email.encode('ascii'))
     else: 
         # if index not in range let user know
         message = "Index out of range, there is no email with that index"
         # encrypt #
-        connectionSocket.send(message)
-   
+        connectionSocket.send(message.encode('ascii'))
+
+    #print(str(index))
     return
 
 def server():
@@ -67,7 +79,7 @@ def server():
             # If it is a client process
             if  pid == 0:               
                 serverSocket.close() 
-                viewEmail('client1')
+                viewEmail(['email1.txt', 'email2.txt'], 'client1', connectionSocket)
                 
                 # Client is done with server break connection
                 connectionSocket.close()
