@@ -1,12 +1,11 @@
-# Sera Vallee
-# 3045024
-# CMPT 361
-# L7
+# Sera Vallee, Ian Curry, Sage Jurr, John Divinagracia
+# CMPT 361 
+# Group Project
 
+import json
 import socket
+import os,glob, datetime
 import sys
-import os
-import random
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 
@@ -191,5 +190,37 @@ def server():
             # sys.exit(0)
 
 
+def storeMessage(message):
+    messageList = message.split('\n', 4)
+    
+    recipientList = messageList[1].split(';')
+    recipientList[0] = recipientList[0][4:]
+    
+    timeStr = "Time and Date: " + (datetime.datetime.now()).strftime("%d/%m/%Y %H:%M:%S") + "\n"
+    
+    storedMessage = (messageList[0] + "\n" +  # From
+                     messageList[1] + "\n" +  # To
+                     timeStr +                # Timestamp
+                     messageList[2] + "\n" +  # Title
+                     messageList[3] + "\n" +  # Content Length
+                     messageList[4])          # Conent
+    
+    filename = messageList[0][6:] + "_" + messageList[2][7:] + ".txt"
+    
+    for name in recipientList:
+        outfilepath = os.getcwd() + "/" + name + "/" + filename
+        ouputfile = open(outfilepath, "w")
+        ouputfile.write(message)
+        ouputfile.close()
+    
+    
+def testStoreMessage():
+    inputFile = open("multiline.txt", "r")
+    message = inputFile.read()
+    inputFile.close()
+    
+    storeMessage(message)
+
 # -------
 server()
+#testStoreMessage()
