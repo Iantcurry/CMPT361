@@ -10,6 +10,29 @@ import sys
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 
+
+# Views inbox of client
+# Notes: clientUsername is not needed as this function
+#   is only usable AFTER the user has logged in
+#
+# Parameters:
+#   connectionSocket -> connection socket
+#
+# Returns:
+#   None
+#
+def viewInbox(connectionSocket):
+    emails = json.loads(decrypt(connectionSocket.recv(2048)))
+
+    print(f"{'Index':<10}{'From':<10}{'DateTime':<30}{'Title'}")
+    for email in emails:
+        print(f"{email[0]:<10}{email[1]:<10}{email[2]:<30}{email[3]}")
+
+    connectionSocket.send(encrypt("OK"))
+
+    return None
+
+
 def getKey():
     f = open("key", 'rb')
     key = f.read()

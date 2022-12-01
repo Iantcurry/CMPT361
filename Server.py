@@ -9,6 +9,67 @@ import sys
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 
+
+# View inbox subprotocol
+#
+# Parameters:
+#       connectionSocket -> connection socket
+#       clientUsername -> client's username
+#
+# Returns:
+#       None
+#
+def viewInbox(connectionSocket, clientUsername):
+    sortedInbox = getInbox(clientUsername)
+
+    # Change email list to JSON, encrypt then send
+    emailsJSON = json.dumps(sortedInbox)
+    encryptedEmails = encrypt(emailsJSON)
+    
+    # Make sure to use decrypt, then use json.loads() to change
+    # JSON back to list
+    connectionSocket.send(encryptedEmails)
+
+    # Wait for OK
+    decrypt(connectionSocket.receive(2048))
+
+
+# Get inbox, helper function
+#
+# Parameters:
+#   clientUsername -> client's username
+#
+# Returns:
+#   emails -> list of sorted emails
+#
+def getInbox(clientUsername):
+    emails = []
+
+    # Assuming location is in "(client username)/(email).txt"
+    for file in os.listdir(clientUsername):
+        with open(file) as email:
+            emailRead = email.read().splitlines()
+            
+            # Emails will have the following format:
+            #   From, To, Timestamp, Title, Content Length, Content.
+            #   Each separated by "\n". 
+            #
+            # Only want From, Timestamp, and Title:
+            # Use indices 0, 2, 3 on emailRead
+            emails.append([emailRead[0], 
+                           emailRead[2], 
+                           emailRead[3]])
+    
+    # Sorts emails by time and date sent
+    emails.sort(key=lambda time: emails[1])
+
+    # Add index to each email
+    for i in range(len(emails)):
+        emails[i].insert(0, i)
+
+    return emails
+
+
 def getKey():
     f = open("key", 'rb')
     key = f.read()
