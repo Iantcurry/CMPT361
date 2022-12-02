@@ -54,7 +54,7 @@ def viewInbox(connectionSocket, clientUsername):
     connectionSocket.send(encryptedEmails)
 
     # Wait for OK
-    decrypt(connectionSocket.receive(2048))
+    decrypt(connectionSocket.recv(2048))
 
 
 
@@ -137,8 +137,8 @@ def viewEmail(listE, clientName, connectionSocket):
 
         # Making fileName
         # filename is formatted as "username_title.txt"
-        tempL = listE[index][3].split(" ")
-        fileName = clientName + '_' + tempL[1] + '.txt'
+        title = listE[index][3][7:]
+        fileName = clientName + '_' + title + '.txt'
         filePath = os.path.join(path,clientName, fileName)
 
         # now opens filePath created and reads correct email
@@ -179,9 +179,29 @@ def storeMessage(message):
     for name in recipientList:
         outfilepath = os.getcwd() + "/" + name + "/" + filename
         ouputfile = open(outfilepath, "w")
-        ouputfile.write(message)
+        ouputfile.write(storedMessage)
         ouputfile.close()
+        
+    print("An Email from " + messageList[0][6:] +
+          " is sent to " + messageList[1][4:] +
+          " has a conent length of " + messageList[3][16:] + ".\n")
 
+def RecieveMailMessage(socket):
+    size = ""
+    char = ''
+    while char != ';':
+        char = socket.recv(1).decode('ascii')
+        if char != ';': size += char
+    
+    recievedBytes = 0    
+    recievedData = socket.recv(4096)
+    recievedBytes = sys.getsizeof(recievedData)
+    
+    while (recievedBytes < int(size)):
+        recievedData += socket.recv(4096)
+        recievedBytes = sys.getsizeof(recievedData)
+    
+    return recievedData
 
 def testStoreMessage():
     inputFile = open("multiline.txt", "r")
@@ -263,14 +283,30 @@ def menu(connectionSocket):
         # Handle menu options
         if menuSelect == "1":
             # Create and send and email
+            # Send Message asking for email
+            sendEmail_e = encrypt("Send the Email\n")
+            connectionSocket.send(sendEmail_e)
+            
+            # Recieve email message (could be quite large)
+            message_e = RecieveMailMessage(connectionSocket)
+            message = decrypt(message_e)
+            
+            # Store message as email
+            storeMessage(message)
+            
             continue
 
         elif menuSelect == "2":
             # Display inbox
+            viewInbox(connectionSocket, username)
+            
             continue
 
         elif menuSelect == "3":
             # Display email contents
+            emailList = getInbox(username)
+            viewEmail(emailList, username, connectionSocket)
+            
             continue
 
         elif menuSelect == "4":
