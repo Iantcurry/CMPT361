@@ -23,7 +23,7 @@ def gen_rsa_key_pair(privateFilename, publicFilename):
     privFile.close()
 
     # Save public key
-    pubKey = key.public_key().export_key()
+    pubKey = key.publickey().export_key()
     pubFile = open(publicFilename, 'wb')
     pubFile.write(pubKey)
     pubFile.close()
