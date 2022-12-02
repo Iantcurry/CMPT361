@@ -100,7 +100,7 @@ def getInbox(clientUsername):
                            emailRead[3]])
 
     # Sorts emails by time and date sent
-    # emails.sort(key=lambda time: emails[1])
+    emails.sort(key=lambda email: email[1])
 
     # Add index to each email
     for i in range(len(emails)):
@@ -267,7 +267,7 @@ def menu(connectionSocket):
 
         elif menuSelect == "2":
             # Display inbox
-            continue
+            viewInbox(connectionSocket, username)
 
         elif menuSelect == "3":
             # Display email contents

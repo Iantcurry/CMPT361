@@ -200,7 +200,8 @@ def menu(clientSocket):
                 continue
             elif menuSelect == "2":
                 # display email inbox
-                continue
+                viewInbox(clientSocket)
+
             elif menuSelect == "3":
                 # display email contents
                 continue
