@@ -140,24 +140,27 @@ def testCreateEmail():
 def login(clientSocket):
     global symKey
     username = input("Enter username: ")
-    password = input("Enter username: ")
+    password = input("Enter password: ")
     userPass = username + ',' + password
 
     # Encrypt and send username and password
     serverPubKey = RSA.import_key(open("server_public.pem").read())
     cipher_rsa = PKCS1_OAEP.new(serverPubKey)
-    userPass_e = cipher_rsa.encrypt(userPass)
+    raw = pad(userPass.encode(), 64)
+    userPass_e = cipher_rsa.encrypt(raw)
     clientSocket.send(userPass_e)
 
     # Receive server response
-    response = clientSocket.recv(2048)
-
     loggedIn = False
-    # If we did not receive unencrypted message starting with I
-    if response.decode('ascii')[0] != "I":
+    response_e = clientSocket.recv(2048)
+    try:
+        response = response_e.decode('ascii')
+        print(response)
+    except UnicodeDecodeError as e:
         serverPubKey = RSA.import_key(open(username + "_private.pem").read())
         cipher_rsa = PKCS1_OAEP.new(serverPubKey)
-        symKey = cipher_rsa.decrypt(response)  # set global symKey
+        raw = cipher_rsa.decrypt(response_e)
+        symKey = unpad(raw, 64)                         # set global symKey
         loggedIn = True
 
     return loggedIn

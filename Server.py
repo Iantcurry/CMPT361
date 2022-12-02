@@ -207,15 +207,17 @@ def login(connectionSocket):
     serverPrivKey = RSA.import_key(open("server_private.pem").read())
     cipher_rsa = PKCS1_OAEP.new(serverPrivKey)
     # decrypt, decode to ascii, and split into username and password
-    userPass = cipher_rsa.decrypt(usernamePassword_e).decode('ascii').split(',')
+    raw = cipher_rsa.decrypt(usernamePassword_e)
+    userPass = unpad(raw, 64).decode('ascii').split(',')
 
     with open("user_pass.json", 'r') as f:
         authUsers = json.load(f)
+        f.close()
 
     # authenticate user
     loggedIn = False
-    for user, password in authUsers:
-        if userPass[0] == user & password == userPass[1]:
+    for user in authUsers:
+        if (userPass[0] == user) & (userPass[1] == authUsers[user]):
             loggedIn = True
             username = user
 
@@ -225,13 +227,14 @@ def login(connectionSocket):
         symKey = get_random_bytes(32) # AES 256
         clientPubKey = RSA.import_key(open(username + "_public.pem").read())
         cipher_rsa = PKCS1_OAEP.new(clientPubKey)
+        raw = pad(symKey, 64)
 
-        message = cipher_rsa.encrypt(symKey)
+        message = cipher_rsa.encrypt(raw)
         print("Connection Accepted and Symmetric Key generated for client: " + username)
     else:
         # dump session key to prevent accidental usage
         symKey = -1
-        message = "Invalid Username or Password"
+        message = "Invalid Username or Password".encode()
         print("The received information: " + username + "is invalid (Connection Terminated).")
 
     connectionSocket.send(message)  # Send appropriate message if logged in or not
@@ -350,8 +353,8 @@ def server():
         #     trace = e.__traceback__.tb_lineno
         #     print('Non-Socket exception occurred: ', e)
         #     print("In: ", trace)
-            # serverSocket.close()
-            # sys.exit(1)
+        #     serverSocket.close()
+        #     sys.exit(1)
 
 
 # -------
