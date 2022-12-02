@@ -69,6 +69,28 @@ def exam(clientSocket):
         clientSocket.send(answer_e)
 
 
+def viewEmail(clientSocket):
+    # recieve and decode
+    message = clientSocket.recv(2048)
+    message = decrypt(message)
+    
+    # Get index of email from user
+    index =  input("Enter the email index you wish to view: ")
+    
+    # encrypt and send #
+    index = encrypt(index)
+    clientSocket.send(index)
+
+    # recieve email to view from server or error message if index was out of range
+    email = clientSocket.recv(2048)
+    # decrypt #
+    email = decrypt(email)
+    
+    # prints email if index in range or error message if index was out of range
+    print() # for spacing
+    print(email)
+
+    return
 
 def client():
     """Client: manages connection with server."""
