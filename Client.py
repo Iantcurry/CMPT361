@@ -1,25 +1,52 @@
 import socket
-import os
+import os,glob, datetime
 import sys
 import random
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 
-def viewEmail(clientSocket):
-    message = clientSocket.recv(2048)
-    message = message.decode('ascii')
-    # decrpyt #
-    
-    index =  input("Enter the email index you wish to view: ")
-    # encrypt #
-    clientSocket.send(index.encode('ascii'))
+def getKey():
+    f = open("key", 'rb')
+    key = f.read()
+    f.close()
 
-    # recieve email to view from server or message if index was out of range
-    email = clientSocket.recv(2048)
-    email = email.decode('ascii')
-    # decrypt #
+    return key
+
+def encrypt(message):
+    key = getKey()
+    raw = pad(message.encode(), 32)
+    cipher = AES.new(key, AES.MODE_ECB)
+    encryptedMsg = cipher.encrypt(raw)
+
+    return encryptedMsg
+
+def decrypt(message):
+    key = getKey()
+    cipher = AES.new(key, AES.MODE_ECB)
+    raw = cipher.decrypt(message)
+    decryptedMsg = unpad(raw, 32).decode('ascii')
+
+    return decryptedMsg
+
+def viewEmail(clientSocket):
+    # recieve and decode
+    message = clientSocket.recv(2048)
+    message = decrypt(message)
     
-    # prints email or message if index was out of range
+    # Get index of email from user
+    index =  input("Enter the email index you wish to view: ")
+    
+    # encrypt and send #
+    index = encrypt(index)
+    clientSocket.send(index)
+
+    # recieve email to view from server or error message if index was out of range
+    email = clientSocket.recv(2048)
+    # decrypt #
+    email = decrypt(email)
+    
+    # prints email if index in range or error message if index was out of range
+    print() # for spacing
     print(email)
 
     return
@@ -41,7 +68,6 @@ def client():
         #Client connect with the server
         clientSocket.connect((serverName,serverPort))
         viewEmail(clientSocket)
-
         # Client is done with server break connection
         clientSocket.close()
         
