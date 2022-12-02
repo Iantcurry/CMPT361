@@ -4,22 +4,44 @@
 
 import json
 import socket
-import os,glob, datetime
+import os, datetime
 import sys
 import random
-from Crypto.Cipher import AES
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.PublicKey import RSA
+from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
 
+import key_generator
 
-# View inbox subprotocol
-#
-# Parameters:
-#       connectionSocket -> connection socket
-#       clientUsername -> client's username
-#
-# Returns:
-#       None
-#
+# GLOBAL VARS
+symKey = 0          # symmetric key generated on login
+username = ""       # username of authenticated client
+
+def encrypt(message):
+    raw = pad(message.encode(), 16)
+    cipher = AES.new(symKey, AES.MODE_ECB)
+    encryptedMsg = cipher.encrypt(raw)
+
+    return encryptedMsg
+
+def decrypt(message):
+    cipher = AES.new(symKey, AES.MODE_ECB)
+    raw = cipher.decrypt(message)
+    decryptedMsg = unpad(raw, 16).decode('ascii')
+
+    return decryptedMsg
+
+"""
+View inbox subprotocol
+
+Parameters:
+      connectionSocket -> connection socket
+      clientUsername -> client's username
+
+Returns:
+      None
+"""
 def viewInbox(connectionSocket, clientUsername):
     sortedInbox = getInbox(clientUsername)
 
@@ -34,28 +56,7 @@ def viewInbox(connectionSocket, clientUsername):
     # Wait for OK
     decrypt(connectionSocket.receive(2048))
 
-def getKey():
-    f = open("key", 'rb')
-    key = f.read()
-    f.close()
 
-    return key
-
-def encrypt(message):
-    key = getKey()
-    raw = pad(message.encode(), 32)
-    cipher = AES.new(key, AES.MODE_ECB)
-    encryptedMsg = cipher.encrypt(raw)
-
-    return encryptedMsg
-
-def decrypt(message):
-    key = getKey()
-    cipher = AES.new(key, AES.MODE_ECB)
-    raw = cipher.decrypt(message)
-    decryptedMsg = unpad(raw, 32).decode('ascii')
-
-    return decryptedMsg
 
 def printEncMsg(encMsg, name=''):
     if name != '':
@@ -69,88 +70,6 @@ def printDencMsg(decMsg, name=''):
     else:
         print("Decrypted message received: " + decMsg)
 
-def randomQuestion(num):
-    answer = 0
-    string = ''
-    x = random.randint(0,100)
-    y = random.randint(0,100)
-    op = random.randint(1,3)
-    if op == 1:                 # + add
-        answer = x + y
-        string = f'{"Question"}{num}{": "}{x}{" + "}{y}{" ="}'
-    elif op == 2:               # - sub
-        answer = x - y
-        string = f'{"Question"}{num}{": "}{x}{" - "}{y}{" ="}'
-    elif op == 3:               # * mult
-        answer = x * y
-        string = f'{"Question"}{num}{": "}{x}{" * "}{y}{" ="}'
-
-    return answer, string
-
-
-# Menu option 2
-def exam(connectionSocket, name):
-    score = 0
-    for i in range(1,5):
-        qAns, qStr = randomQuestion(i)
-
-        qStr_e = encrypt(qStr)
-        connectionSocket.send(qStr_e)
-
-        # Receive file and save it
-        ansEntry_e = connectionSocket.recv(32)
-        printEncMsg(ansEntry_e, name)
-        ansEntry = decrypt(ansEntry_e)
-        printDencMsg(ansEntry, name)
-
-        if int(ansEntry) == qAns:
-            score = score + 1
-
-    return score
-
-
-def menu(connectionSocket):
-    """Menu: deals with the menu of the application."""
-
-    # Ask for a name and then receive it
-    examMsg = "Welcome to examination System"
-    examMsg_e = encrypt(examMsg)
-    connectionSocket.send(examMsg_e)
-
-    nameMsg = '1Enter the name: '
-    nameMsg_e = encrypt(nameMsg)
-    connectionSocket.send(nameMsg_e)
-
-    nameEntry_e = connectionSocket.recv(32)
-    printEncMsg(nameMsg_e)
-    nameEntry = decrypt(nameEntry_e)
-    printDencMsg(nameEntry)
-
-    while True:
-        score = exam(connectionSocket, nameEntry)
-
-        # Report score
-        scoreMsg = "You achieved a score of " + str(score) + "/4"
-        scoreMsg_e = encrypt(scoreMsg)
-        connectionSocket.send(scoreMsg_e)
-
-        retryMsg = '2Try again? (y/n)'
-        retryMsg_e = encrypt(retryMsg)
-        connectionSocket.send(retryMsg_e)
-
-        # Get menu select from client
-        menuEntry_e = connectionSocket.recv(32)
-        printEncMsg(menuEntry_e, nameEntry)
-        menuEntry = decrypt(menuEntry_e)
-        printDencMsg(menuEntry, nameEntry)
-
-        # Handle menu options
-        if menuEntry == "y":
-            continue
-
-        else:
-            # Break loop, exit menu, server will handle connection closing
-            break
 
 # Get inbox, helper function
 #
@@ -240,9 +159,133 @@ def viewEmail(listE, clientName, connectionSocket):
 
     return
 
+def storeMessage(message):
+    messageList = message.split('\n', 4)
+
+    recipientList = messageList[1].split(';')
+    recipientList[0] = recipientList[0][4:]
+
+    timeStr = "Time and Date: " + (datetime.datetime.now()).strftime("%d/%m/%Y %H:%M:%S") + "\n"
+
+    storedMessage = (messageList[0] + "\n" +  # From
+                     messageList[1] + "\n" +  # To
+                     timeStr +                # Timestamp
+                     messageList[2] + "\n" +  # Title
+                     messageList[3] + "\n" +  # Content Length
+                     messageList[4])          # Conent
+
+    filename = messageList[0][6:] + "_" + messageList[2][7:] + ".txt"
+
+    for name in recipientList:
+        outfilepath = os.getcwd() + "/" + name + "/" + filename
+        ouputfile = open(outfilepath, "w")
+        ouputfile.write(message)
+        ouputfile.close()
+
+
+def testStoreMessage():
+    inputFile = open("multiline.txt", "r")
+    message = inputFile.read()
+    inputFile.close()
+
+    storeMessage(message)
+
+
+def login(connectionSocket):
+    """
+    Attempt to authenticate a user and generate symmetric key
+
+    returns bool loggedIn, True if successfully authenticated
+    """
+    global symKey
+    global username
+
+    # receive encrypted username and password
+    usernamePassword_e = connectionSocket.recv(2048)
+
+    #get server private key and make cipher
+    serverPrivKey = RSA.import_key(open("server_private.pem").read())
+    cipher_rsa = PKCS1_OAEP.new(serverPrivKey)
+    # decrypt, decode to ascii, and split into username and password
+    userPass = cipher_rsa.decrypt(usernamePassword_e).decode('ascii').split(',')
+
+    with open("user_pass.json", 'r') as f:
+        authUsers = json.load(f)
+
+    # authenticate user
+    loggedIn = False
+    for user, password in authUsers:
+        if userPass[0] == user & password == userPass[1]:
+            loggedIn = True
+            username = user
+
+    message = ""
+    if loggedIn:
+        # Generate and encrypt symmetric key with client public key
+        symKey = get_random_bytes(32) # AES 256
+        clientPubKey = RSA.import_key(open(username + "_public.pem").read())
+        cipher_rsa = PKCS1_OAEP.new(clientPubKey)
+
+        message = cipher_rsa.encrypt(symKey)
+        print("Connection Accepted and Symmetric Key generated for client: " + username)
+    else:
+        # dump session key to prevent accidental usage
+        symKey = -1
+        message = "Invalid Username or Password"
+        print("The received information: " + username + "is invalid (Connection Terminated).")
+
+    connectionSocket.send(message)  # Send appropriate message if logged in or not
+
+    return loggedIn
+
+
+def menu(connectionSocket):
+    """Menu: deals with the user menu of the application."""
+
+    while True:
+
+        menuStr = '''
+        Select operation:
+        \t1) Create and send an email
+        \t2) Display the inbox list
+        \t3) Display the email contents
+        \t4) Terminate the connection
+        '''
+        menuStr_e = encrypt(menuStr)
+        connectionSocket.send(menuStr_e)
+
+        menuSelect_e = connectionSocket.recv(2048)
+        menuSelect = decrypt(menuSelect_e)
+
+        # Handle menu options
+        if menuSelect == "1":
+            # Create and send and email
+            continue
+
+        elif menuSelect == "2":
+            # Display inbox
+            continue
+
+        elif menuSelect == "3":
+            # Display email contents
+            continue
+
+        elif menuSelect == "4":
+            # Break loop, exit menu, server will handle connection closing
+            print("Terminating connection with " + username)
+            break
+
+        else:
+            # Invalid entry, should never happen
+            print("Something went wrong - Menu")
+            break
 
 def server():
     """Server: Manages server application."""
+
+    # Check that keys have been generated, create them if not
+    if not os.path.exists("server_private.pem"):
+        key_generator.gen_all_keys()
 
     # Server port
     serverPort = 13000
@@ -277,13 +320,21 @@ def server():
             connectionSocket, addr = serverSocket.accept()
             c_pid = os.fork()
             if c_pid == 0:
+                serverSocket.close()
+
+                # Try to log in user, assigns symKey a username global vars
+                loggedIn = login(connectionSocket)
+
                 # Run Menu that the User interacts with
-                menu(connectionSocket)
+                if loggedIn:
+                    menu(connectionSocket)
+
 
                 # Server terminates client connection
                 connectionSocket.close()
                 break
             else:
+                connectionSocket.close()
                 concurrent += 1
                 continue
 
@@ -300,39 +351,8 @@ def server():
         #     print('Non-Socket exception occurred: ', e)
         #     print("In: ", trace)
             # serverSocket.close()
-            # sys.exit(0)
+            # sys.exit(1)
 
-
-def storeMessage(message):
-    messageList = message.split('\n', 4)
-
-    recipientList = messageList[1].split(';')
-    recipientList[0] = recipientList[0][4:]
-
-    timeStr = "Time and Date: " + (datetime.datetime.now()).strftime("%d/%m/%Y %H:%M:%S") + "\n"
-
-    storedMessage = (messageList[0] + "\n" +  # From
-                     messageList[1] + "\n" +  # To
-                     timeStr +                # Timestamp
-                     messageList[2] + "\n" +  # Title
-                     messageList[3] + "\n" +  # Content Length
-                     messageList[4])          # Conent
-
-    filename = messageList[0][6:] + "_" + messageList[2][7:] + ".txt"
-
-    for name in recipientList:
-        outfilepath = os.getcwd() + "/" + name + "/" + filename
-        ouputfile = open(outfilepath, "w")
-        ouputfile.write(message)
-        ouputfile.close()
-
-
-def testStoreMessage():
-    inputFile = open("multiline.txt", "r")
-    message = inputFile.read()
-    inputFile.close()
-
-    storeMessage(message)
 
 # -------
 server()

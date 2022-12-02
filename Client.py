@@ -8,68 +8,55 @@ import socket
 import os
 import sys
 import random
-import os,glob, datetime
+import os, glob, datetime
 import sys
-from Crypto.Cipher import AES
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.PublicKey import RSA
 from Crypto.Util.Padding import pad, unpad
 
+# GLOBAL VARS
+symKey = 0  # symmetric key generated on login
 
-# Views inbox of client
-# Notes: clientUsername is not needed as this function
-#   is only usable AFTER the user has logged in
-#
-# Parameters:
-#   connectionSocket -> connection socket
-#
-# Returns:
-#   None
-#
-def viewInbox(connectionSocket):
-    emails = json.loads(decrypt(connectionSocket.recv(2048)))
+
+def encrypt(message):
+    raw = pad(message.encode(), 16)
+    cipher = AES.new(symKey, AES.MODE_ECB)
+    encryptedMsg = cipher.encrypt(raw)
+
+    return encryptedMsg
+
+
+def decrypt(message):
+    cipher = AES.new(symKey, AES.MODE_ECB)
+    raw = cipher.decrypt(message)
+    decryptedMsg = unpad(raw, 16).decode('ascii')
+
+    return decryptedMsg
+
+
+"""
+Views inbox of client
+Notes: clientUsername is not needed as this function
+  is only usable AFTER the user has logged in
+
+Parameters:
+  clientSocket -> connection socket
+
+Returns:
+  None
+"""
+
+
+def viewInbox(clientSocket):
+    emails = json.loads(decrypt(clientSocket.recv(2048)))
 
     print(f"{'Index':<10}{'From':<10}{'DateTime':<30}{'Title'}")
     for email in emails:
         print(f"{email[0]:<10}{email[1]:<10}{email[2]:<30}{email[3]}")
 
-    connectionSocket.send(encrypt("OK"))
+    clientSocket.send(encrypt("OK"))
 
     return None
-
-
-def getKey():
-    f = open("key", 'rb')
-    key = f.read()
-    f.close()
-
-    return key
-
-def encrypt(message):
-    key = getKey()
-    raw = pad(message.encode(), 32)
-    cipher = AES.new(key, AES.MODE_ECB)
-    encryptedMsg = cipher.encrypt(raw)
-
-    return encryptedMsg
-
-def decrypt(message):
-    key = getKey()
-    cipher = AES.new(key, AES.MODE_ECB)
-    raw = cipher.decrypt(message)
-    decryptedMsg = unpad(raw, 32).decode('ascii')
-
-    return decryptedMsg
-
-def exam(clientSocket):
-    for i in range(4):
-        # get question
-        question_e = clientSocket.recv(32)
-        question = decrypt(question_e)
-        print(question)
-
-        # send user entry
-        answer = input()
-        answer_e = encrypt(answer)
-        clientSocket.send(answer_e)
 
 
 def viewEmail(clientSocket):
@@ -78,7 +65,7 @@ def viewEmail(clientSocket):
     message = decrypt(message)
 
     # Get index of email from user
-    index =  input("Enter the email index you wish to view: ")
+    index = input("Enter the email index you wish to view: ")
 
     # encrypt and send #
     index = encrypt(index)
@@ -90,59 +77,13 @@ def viewEmail(clientSocket):
     email = decrypt(email)
 
     # prints email if index in range or error message if index was out of range
-    print() # for spacing
+    print()  # for spacing
     print(email)
 
     return
 
-def client():
-    """Client: manages connection with server."""
-    # Server Information
-    #serverName = 'cc5-212-19.macewan.ca'#'127.0.0.1' #'localhost'
-    serverName = input("Enter the server IP or name: ")
-    serverPort = 13000
 
-    #Create client socket that useing IPv4 and TCP protocols
-    try:
-        clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    except socket.error as e:
-        print('Error in client socket creation:', e)
-        sys.exit(1)
-
-    try:
-
-        # Client connect with the server
-        clientSocket.connect((serverName, serverPort))
-        while True:
-            # get first message
-            message1_e = clientSocket.recv(32)
-            message1 = decrypt(message1_e)
-            print(message1)
-
-            message2_e = clientSocket.recv(32)
-            message2 = decrypt(message2_e)
-            flag = message2[0]
-            print(message2[1:])
-
-            # send user entry
-            entry = input()
-            entry_e = encrypt(entry)
-            clientSocket.send(entry_e)
-
-            if flag == '2' and entry != 'y':
-                break
-            else:
-                exam(clientSocket)
-
-        # Client terminate connection with the server
-        clientSocket.close()
-
-    except socket.error as e:
-        print('An error occured:', e)
-        clientSocket.close()
-        sys.exit(1)
-
-#----------
+# ----------
 def createEmail(username):
     message = ""
 
@@ -185,8 +126,8 @@ def createEmail(username):
                "Content:\n" +
                contents)
 
-
     return message
+
 
 def testCreateEmail():
     message = createEmail("user1")
@@ -195,6 +136,108 @@ def testCreateEmail():
     output.write(message)
     output.close()
 
+
+def login(clientSocket):
+    global symKey
+    username = input("Enter username: ")
+    password = input("Enter username: ")
+    userPass = username + ',' + password
+
+    # Encrypt and send username and password
+    serverPubKey = RSA.import_key(open("server_public.pem").read())
+    cipher_rsa = PKCS1_OAEP.new(serverPubKey)
+    userPass_e = cipher_rsa.encrypt(userPass)
+    clientSocket.send(userPass_e)
+
+    # Receive server response
+    response = clientSocket.recv(2048)
+
+    loggedIn = False
+    # If we did not receive unencrypted message starting with I
+    if response.decode('ascii')[0] != "I":
+        serverPubKey = RSA.import_key(open(username + "_private.pem").read())
+        cipher_rsa = PKCS1_OAEP.new(serverPubKey)
+        symKey = cipher_rsa.decrypt(response)  # set global symKey
+        loggedIn = True
+
+    return loggedIn
+
+def menu(clientSocket):
+    """Client menu handler"""
+    while True:
+            # get menu message
+            menuStr_e = clientSocket.recv(2048)
+            menuStr = decrypt(menuStr_e)
+
+            menuSelect = ""
+            valid = False
+            while True:
+                # print menu and get user input
+                print(menuStr)
+                menuSelect = input()
+
+                # if it is a valid menu entry, allow continue, else keep prompting
+                validInputs = ["1", "2", "3", "4"]
+                for entry in validInputs:
+                    if entry == menuSelect:
+                        valid = True
+                        break
+                if valid:
+                    break
+                else:
+                    print("Invalid entry")
+
+            # encrypt selection and send
+            menuSelect_e = encrypt(menuSelect)
+            clientSocket.send(menuSelect_e)
+
+            # go to menu option
+            if menuSelect == "1":
+                # create an email
+                continue
+            elif menuSelect == "2":
+                # display email inbox
+                continue
+            elif menuSelect == "3":
+                # display email contents
+                continue
+            elif menuSelect == "4":
+                # terminate connection
+                break
+def client():
+    """Client: manages connection with server."""
+    # Server Information
+    # serverName = 'cc5-212-19.macewan.ca'#'127.0.0.1' #'localhost'
+    serverName = input("Enter the server IP or name: ")
+    serverPort = 13000
+
+    # Create client socket that useing IPv4 and TCP protocols
+    try:
+        clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    except socket.error as e:
+        print('Error in client socket creation:', e)
+        sys.exit(1)
+
+    try:
+
+        # Client connect with the server
+        clientSocket.connect((serverName, serverPort))
+
+        # Attempt to authenticate user
+        loggedIn = login(clientSocket)
+        # If successfully authenticated, access menu
+        if loggedIn:
+            menu(clientSocket)
+
+        # Client terminate connection with the server
+        clientSocket.close()
+
+    except socket.error as e:
+        print('An error occured:', e)
+        clientSocket.close()
+        sys.exit(1)
+
+
 # ----------
 client()
-#testCreateEmail()
+# testCreateEmail()
