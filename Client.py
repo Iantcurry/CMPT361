@@ -70,7 +70,7 @@ def viewEmail(clientSocket):
 
     # recieve email to view from server or error message if index was out of range
     #email = clientSocket.recv(2048)
-    email = RecieveMailMessage(clientSocket)
+    email = recieveMailMessage(clientSocket)
     # decrypt #
     email = decrypt(email)
 
@@ -82,7 +82,7 @@ def viewEmail(clientSocket):
 
     return
 
-def RecieveMailMessage(socket):
+def recieveMailMessage(socket):
     size = ""
     char = ''
     while char != ';':
