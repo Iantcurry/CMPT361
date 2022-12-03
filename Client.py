@@ -69,17 +69,36 @@ def viewEmail(clientSocket):
     clientSocket.send(index)
 
     # recieve email to view from server or error message if index was out of range
-    email = clientSocket.recv(2048)
+    #email = clientSocket.recv(2048)
+    email = RecieveMailMessage(clientSocket)
     # decrypt #
     email = decrypt(email)
 
     # prints email if index in range or error message if index was out of range
     print()  # for spacing
     print(email)
+    
+    clientSocket.send(encrypt("OK"))
 
     return
 
+def RecieveMailMessage(socket):
+    size = ""
+    char = ''
+    while char != ';':
+        char = socket.recv(1).decode('ascii')
+        if char != ';': size += char
 
+    recievedBytes = 0
+    recievedData = socket.recv(4096)
+    recievedBytes = sys.getsizeof(recievedData)
+
+    while (recievedBytes < int(size)):
+        recievedData += socket.recv(4096)
+        recievedBytes = sys.getsizeof(recievedData)
+
+    return recievedData
+    
 # ----------
 def createEmail(username):
     message = ""
