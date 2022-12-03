@@ -1,18 +1,21 @@
-from Crypto.PublicKey import RSA
 import json
+from Crypto.PublicKey import RSA
 
 
 def client_gen_key_pair(username):
+    """Generate Client key pair given username"""
     gen_rsa_key_pair(username + "_private.pem", username + "_public.pem")
     return
 
 
 def server_gen_key_pair():
+    """Generate Server key pair"""
     gen_rsa_key_pair("server_private.pem", "server_public.pem")
     return
 
 
 def gen_rsa_key_pair(privateFilename, publicFilename):
+    """Generate key pairs into a private and public files"""
     # Generate key pair
     key = RSA.generate(2048)
 
@@ -44,5 +47,6 @@ def gen_all_keys():
         client_gen_key_pair(user)
 
     return
+
 
 gen_all_keys()
