@@ -2,11 +2,12 @@
 # CMPT 361
 # Group Project
 
+import datetime
 import json
+import os
 import socket
-import os, datetime
 import sys
-import random
+
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
@@ -74,7 +75,7 @@ def getInbox(clientUsername):
     # Assuming location is in "(client username)/(email).txt"
     for file in os.listdir(clientUsername):
         path = "./"
-        filePath = os.path.join(path,clientUsername, file)
+        filePath = os.path.join(path, clientUsername, file)
         with open(filePath) as email:
             emailRead = email.read().splitlines()
 
@@ -178,7 +179,7 @@ def storeMessage(message):
       " has a conent length of " + messageList[3][16:] + ".\n")
 
 
-def RecieveMailMessage(socket):
+def recieveMailMessage(socket):
     size = ""
     char = ''
     while char != ';':
@@ -203,6 +204,13 @@ def testStoreMessage():
 
     storeMessage(message)
 
+def make_file_structure():
+    with open("user_pass.json", 'r') as f:
+        users = json.load(f)
+
+    for user in users:
+        if not os.path.exists(user):
+            os.mkdir(user)
 
 def login(connectionSocket):
     """
@@ -281,7 +289,7 @@ def menu(connectionSocket):
             connectionSocket.send(sendEmail_e)
 
             # Recieve email message (could be quite large)
-            message_e = RecieveMailMessage(connectionSocket)
+            message_e = recieveMailMessage(connectionSocket)
             message = decrypt(message_e)
 
             # Store message as email
@@ -311,8 +319,12 @@ def server():
     """Server: Manages server application."""
 
     # Check that keys have been generated, create them if not
+    # TODO: !!!!!!!!! GET RID OF THIS BEFORE SUBMISSION !!!!!!!!!
     if not os.path.exists("server_private.pem"):
         key_generator.gen_all_keys()
+    # TODO: ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    # Check if file structure exists, if not, make it
+    make_file_structure()
 
     # Server port
     serverPort = 13000
@@ -334,19 +346,16 @@ def server():
 
     print('The server is ready to accept connections')
 
-    concurrent = 0
     while True:
         # The server can only have 1 connection in its queue waiting for acceptance
         serverSocket.listen(5)
 
         try:
-            if concurrent > 5:
-                os.wait()
-                concurrent -= 1
             # Server accepts client connection
             connectionSocket, addr = serverSocket.accept()
             c_pid = os.fork()
             if c_pid == 0:
+                # child process doesn't need server socket
                 serverSocket.close()
 
                 # Try to log in user, assigns symKey a username global vars
@@ -361,8 +370,8 @@ def server():
                 connectionSocket.close()
                 break
             else:
+                # parent process doesn't need connection socket
                 connectionSocket.close()
-                concurrent += 1
                 continue
 
         except socket.error as e:
