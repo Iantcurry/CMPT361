@@ -16,7 +16,7 @@ from Crypto.Util.Padding import pad, unpad
 
 # GLOBAL VARS
 symKey = 0  # symmetric key generated on login
-
+username = ""
 
 def encrypt(message):
     raw = pad(message.encode(), 16)
@@ -52,7 +52,7 @@ def viewInbox(clientSocket):
 
     print(f"{'Index':<10}{'From':<10}{'DateTime':<30}{'Title'}")
     for email in emails:
-        print(f"{email[0]:<10}{email[1]:<10}{email[2]:<30}{email[3]}")
+        print(f"{email[0]:<10}{email[1][6:]:<10}{email[2][15:]:<30}{email[3][7:]}")
 
     clientSocket.send(encrypt("OK"))
 
@@ -139,6 +139,7 @@ def testCreateEmail():
 
 def login(clientSocket):
     global symKey
+    global username
     username = input("Enter username: ")
     password = input("Enter password: ")
     userPass = username + ',' + password
@@ -197,14 +198,23 @@ def menu(clientSocket):
             # go to menu option
             if menuSelect == "1":
                 # create an email
-                continue
+                # Recieve message request from server
+                message_e = clientSocket.recv(1024)
+                message = decrypt(message_e)
+                print(message)
+
+                # Create Mail
+                message = createEmail(username)
+
+
             elif menuSelect == "2":
                 # display email inbox
                 viewInbox(clientSocket)
 
             elif menuSelect == "3":
                 # display email contents
-                continue
+                viewEmail(clientSocket)
+
             elif menuSelect == "4":
                 # terminate connection
                 break
