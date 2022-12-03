@@ -205,8 +205,14 @@ def menu(clientSocket):
 
                 # Create Mail
                 message = createEmail(username)
-
-
+                message_e = encrypt(message)
+                
+                # Send mail message
+                size = str(len(message_e)) + ';'
+                clientSocket.send(size.encode('ascii'))
+                clientSocket.send(message_e)
+                
+                print("The message was sent to the server.\n")
             elif menuSelect == "2":
                 # display email inbox
                 viewInbox(clientSocket)
