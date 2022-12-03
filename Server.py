@@ -128,7 +128,8 @@ def viewEmail(listE, clientName, connectionSocket):
         # Making fileName
         # filename is formatted as "username_title.txt"
         title = listE[index][3][7:]
-        fileName = clientName + '_' + title + '.txt'
+        sender = listE[index][1][6:]
+        fileName = sender + '_' + (title).replace(" ", "_") + '.txt'
         filePath = os.path.join(path,clientName, fileName)
 
         # now opens filePath created and reads correct email
@@ -137,6 +138,8 @@ def viewEmail(listE, clientName, connectionSocket):
 
         # encrypt email and send to user
         email = encrypt(email)
+        size = str(len(email)) + ';'
+        connectionSocket.send(size.encode('ascii'))
         connectionSocket.send(email)
 
     else:
@@ -146,6 +149,8 @@ def viewEmail(listE, clientName, connectionSocket):
         # encrypt and send #
         message = encrypt(message)
         connectionSocket.send(message)
+        
+    decrypt(connectionSocket.recv(2048))
 
     return
 
@@ -165,7 +170,7 @@ def storeMessage(message):
                      messageList[3] + "\n" +  # Content Length
                      messageList[4])          # Conent
 
-    filename = messageList[0][6:] + "_" + messageList[2][7:] + ".txt"
+    filename = messageList[0][6:] + "_" + (messageList[2][7:]).replace(" ", "_") + ".txt"
 
     for name in recipientList:
         outfilepath = os.getcwd() + "/" + name + "/" + filename
