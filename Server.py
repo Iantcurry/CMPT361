@@ -128,9 +128,11 @@ def viewEmail(listE, clientName, connectionSocket):
 
         # Making fileName
         # filename is formatted as "username_title.txt"
+        sender = listE[index][1][6:]
         title = listE[index][3][7:]
-        fileName = clientName + '_' + title + '.txt'
-        filePath = os.path.join(path,clientName, fileName)
+
+        fileName = sender + '_' + title + '.txt'
+        filePath = os.path.join(path, clientName, fileName)
 
         # now opens filePath created and reads correct email
         with open(filePath, "r") as file:
@@ -176,7 +178,7 @@ def storeMessage(message):
 
     print("An Email from " + messageList[0][6:] +
       " is sent to " + messageList[1][4:] +
-      " has a conent length of " + messageList[3][16:] + ".\n")
+      " has a content length of " + messageList[3][16:] + ".\n")
 
 
 def recieveMailMessage(socket):
