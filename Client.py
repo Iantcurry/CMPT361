@@ -18,6 +18,7 @@ from Crypto.Util.Padding import pad, unpad
 symKey = 0  # symmetric key generated on login
 username = ""
 
+
 def encrypt(message):
     raw = pad(message.encode(), 16)
     cipher = AES.new(symKey, AES.MODE_ECB)
@@ -34,20 +35,18 @@ def decrypt(message):
     return decryptedMsg
 
 
-"""
-Views inbox of client
-Notes: clientUsername is not needed as this function
-  is only usable AFTER the user has logged in
-
-Parameters:
-  clientSocket -> connection socket
-
-Returns:
-  None
-"""
-
-
 def viewInbox(clientSocket):
+    """
+    Views inbox of client
+    Notes: clientUsername is not needed as this function
+      is only usable AFTER the user has logged in
+
+    Parameters:
+      clientSocket -> connection socket
+
+    Returns:
+      None
+    """
     emails = json.loads(decrypt(clientSocket.recv(2048)))
 
     print(f"{'Index':<10}{'From':<10}{'DateTime':<30}{'Title'}")
@@ -166,6 +165,7 @@ def login(clientSocket):
 
     return loggedIn
 
+
 def menu(clientSocket):
     """Client menu handler"""
     while True:
@@ -218,6 +218,8 @@ def menu(clientSocket):
             elif menuSelect == "4":
                 # terminate connection
                 break
+
+
 def client():
     """Client: manages connection with server."""
     # Server Information

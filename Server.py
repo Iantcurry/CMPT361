@@ -18,6 +18,7 @@ import key_generator
 symKey = 0          # symmetric key generated on login
 username = ""       # username of authenticated client
 
+
 def encrypt(message):
     raw = pad(message.encode(), 16)
     cipher = AES.new(symKey, AES.MODE_ECB)
@@ -25,12 +26,14 @@ def encrypt(message):
 
     return encryptedMsg
 
+
 def decrypt(message):
     cipher = AES.new(symKey, AES.MODE_ECB)
     raw = cipher.decrypt(message)
     decryptedMsg = unpad(raw, 16).decode('ascii')
 
     return decryptedMsg
+
 
 """
 View inbox subprotocol
@@ -55,20 +58,6 @@ def viewInbox(connectionSocket, clientUsername):
 
     # Wait for OK
     decrypt(connectionSocket.recv(2048))
-
-
-
-def printEncMsg(encMsg, name=''):
-    if name != '':
-        print("Encrypted message received from " + name + ": " + str(encMsg))
-    else:
-        print("Encrypted message received: " + str(encMsg))
-
-def printDencMsg(decMsg, name=''):
-    if name != '':
-        print("Decrypted message received from " + name + ": " + decMsg)
-    else:
-        print("Decrypted message received: " + decMsg)
 
 
 # Get inbox, helper function
@@ -108,6 +97,7 @@ def getInbox(clientUsername):
 
     return emails
 
+
 def viewEmail(listE, clientName, connectionSocket):
     message = "the server request email index"
     # encrypt and send
@@ -143,7 +133,7 @@ def viewEmail(listE, clientName, connectionSocket):
 
         # now opens filePath created and reads correct email
         with open(filePath, "r") as file:
-            email = file.read() # Reads email
+            email = file.read()  # Reads email
 
         # encrypt email and send to user
         email = encrypt(email)
@@ -158,6 +148,7 @@ def viewEmail(listE, clientName, connectionSocket):
         connectionSocket.send(message)
 
     return
+
 
 def storeMessage(message):
     messageList = message.split('\n', 4)
@@ -186,6 +177,7 @@ def storeMessage(message):
       " is sent to " + messageList[1][4:] +
       " has a conent length of " + messageList[3][16:] + ".\n")
 
+
 def RecieveMailMessage(socket):
     size = ""
     char = ''
@@ -202,6 +194,7 @@ def RecieveMailMessage(socket):
         recievedBytes = sys.getsizeof(recievedData)
 
     return recievedData
+
 
 def testStoreMessage():
     inputFile = open("multiline.txt", "r")
@@ -223,7 +216,7 @@ def login(connectionSocket):
     # receive encrypted username and password
     usernamePassword_e = connectionSocket.recv(2048)
 
-    #get server private key and make cipher
+    # get server private key and make cipher
     serverPrivKey = RSA.import_key(open("server_private.pem").read())
     cipher_rsa = PKCS1_OAEP.new(serverPrivKey)
     # decrypt, decode to ascii, and split into username and password
@@ -312,6 +305,7 @@ def menu(connectionSocket):
             # Invalid entry, should never happen
             print("Something went wrong - Menu")
             break
+
 
 def server():
     """Server: Manages server application."""
