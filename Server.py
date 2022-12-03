@@ -270,13 +270,13 @@ def menu(connectionSocket):
 
     while True:
 
-        menuStr = '''
-        Select operation:
-        \t1) Create and send an email
-        \t2) Display the inbox list
-        \t3) Display the email contents
-        \t4) Terminate the connection
-        '''
+        menuStr = '''Select operation:
+        1) Create and send an email
+        2) Display the inbox list
+        3) Display the email contents
+        4) Terminate the connection
+        
+        Choice: '''
         menuStr_e = encrypt(menuStr)
         connectionSocket.send(menuStr_e)
 
