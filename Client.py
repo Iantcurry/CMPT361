@@ -50,7 +50,10 @@ def viewInbox(clientSocket):
     print(f"{'Index':<10}{'From':<10}{'DateTime':<30}{'Title'}")
     for email in emails:
         print(f"{email[0]:<10}{email[1][6:]:<10}{email[2][15:]:<30}{email[3][7:]}")
-
+    
+    # New line for readability
+    print("")
+        
     clientSocket.send(encrypt("OK"))
 
     return None
@@ -77,6 +80,7 @@ def viewEmail(clientSocket):
     # prints email if index in range or error message if index was out of range
     print()  # for spacing
     print(email)
+    print("")  # for spacing
     
     clientSocket.send(encrypt("OK"))
 
@@ -194,8 +198,7 @@ def menu(clientSocket):
             valid = False
             while True:
                 # print menu and get user input
-                print(menuStr)
-                menuSelect = input()
+                menuSelect = input(menuStr)
 
                 # if it is a valid menu entry, allow continue, else keep prompting
                 validInputs = ["1", "2", "3", "4"]
