@@ -262,7 +262,7 @@ def login(connectionSocket):
     else:
         # dump session key to prevent accidental usage
         symKey = -1
-        message = "Invalid Username or Password".encode()
+        message = "Invalid username or password.".encode()
         print("The received information: " + username + "is invalid (Connection Terminated).")
 
     connectionSocket.send(message)  # Send appropriate message if logged in or not
