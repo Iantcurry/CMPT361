@@ -176,7 +176,7 @@ def login(clientSocket):
     response_e = clientSocket.recv(2048)
     try:
         response = response_e.decode('ascii')
-        print(response)
+        print(f"{response}\nTerminating.")
     except UnicodeDecodeError as e:
         serverPubKey = RSA.import_key(open(username + "_private.pem").read())
         cipher_rsa = PKCS1_OAEP.new(serverPubKey)
@@ -243,6 +243,7 @@ def menu(clientSocket):
 
             elif menuSelect == "4":
                 # terminate connection
+                print("The connection is terminated with the server.")
                 break
 
 
